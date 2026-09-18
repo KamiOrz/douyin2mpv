@@ -13,7 +13,17 @@ final class PlayerModel: ObservableObject {
     @Published var status = "就绪"
     @Published var isError = false
     @Published var roomID = ""
+    @Published private(set) var history: [HistoryEntry] = []
+    private let historyStore = HistoryStore()
     private var task: Task<Void, Never>?
+    init() { history = historyStore.migrateLastInput(input) }
+    func updateNote(_ note: String, for id: String) { history = historyStore.setNote(note, for: id) }
+    func removeHistory(_ id: String) { history = historyStore.remove(id) }
+    func playHistory(_ id: String) {
+        guard !busy else { return }
+        input = id
+        resolve(play: true)
+    }
     var selected: LiveStream? { streams.first { $0.id == selection } }
     var effectiveMPV: String? {
         let custom = mpvPath.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -35,6 +45,7 @@ final class PlayerModel: ObservableObject {
             do {
                 let result = try await LiveResolver.resolve(roomID: id)
                 try Task.checkCancellation()
+                history = historyStore.record(id)
                 streams = result
                 selection = result.first(where: { $0.id == preferred })?.id ?? result[0].id
                 status = "已获取 \(result.count) 个播放选项 · 房间 \(id)"
@@ -135,6 +146,7 @@ struct SystemWindow: NSViewRepresentable {
 struct ContentView: View {
     @StateObject private var model = PlayerModel()
     @State private var settingsOpen = false
+    @State private var historyOpen = false
     @State private var hoveringPlay = false
     @FocusState private var inputFocused: Bool
     private var tint: Color { model.isError ? .orange : .green }
@@ -147,6 +159,12 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
                     .padding(.leading, 82)
                 Spacer()
+                Button { historyOpen.toggle() } label: {
+                    Image(systemName: "clock.arrow.circlepath").font(.system(size: 16, weight: .light))
+                        .foregroundStyle(.secondary).frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain).accessibilityLabel("历史记录").help("历史记录与备注")
+                .popover(isPresented: $historyOpen, arrowEdge: .bottom) { historyPanel }
                 Button { settingsOpen.toggle() } label: {
                     Image(systemName: "gearshape").font(.system(size: 16, weight: .light))
                         .foregroundStyle(.secondary).frame(width: 28, height: 28)
@@ -205,6 +223,42 @@ struct ContentView: View {
         .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         .background(SystemWindow())
         .onChange(of: model.mpvPath) { value in UserDefaults.standard.set(value, forKey: "mpvPath") }
+    }
+
+    private var historyPanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("历史记录").font(.headline)
+            if model.history.isEmpty {
+                Text("还没有历史记录").foregroundStyle(.secondary).padding(.vertical, 18)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 6) {
+                        ForEach(model.history) { entry in
+                            HStack(spacing: 16) {
+                                Button {
+                                    historyOpen = false
+                                    model.playHistory(entry.id)
+                                } label: {
+                                    Text(entry.id).font(.system(size: 13, design: .monospaced))
+                                        .foregroundStyle(.primary).frame(width: 155, alignment: .leading)
+                                }
+                                .buttonStyle(.plain).disabled(model.busy)
+                                .help("播放 \(entry.id)")
+                                TextField("添加备注", text: Binding(
+                                    get: { model.history.first { $0.id == entry.id }?.note ?? "" },
+                                    set: { model.updateNote($0, for: entry.id) }
+                                ))
+                                .textFieldStyle(.plain).font(.system(size: 12)).foregroundStyle(.secondary)
+                                .accessibilityLabel("备注 \(entry.id)")
+                            }
+                            .padding(.vertical, 9).padding(.horizontal, 4)
+                            .contextMenu { Button("移除记录") { model.removeHistory(entry.id) } }
+                        }
+                    }
+                }.frame(height: min(CGFloat(model.history.count) * 42, 294))
+            }
+        }.padding(20).frame(width: 360)
+            .background(Color(nsColor: .windowBackgroundColor))
     }
 
     private var settings: some View {

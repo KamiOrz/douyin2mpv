@@ -13,6 +13,7 @@
 支持：
 
 - `https://live.douyin.com/640145788197`
+- `https://www.douyin.com/follow/live/640145788197?anchor_id=…`
 - `https://www.douyin.com/jingxuan/search/…?live_web_rid=640145788197&type=general`
 - 纯数字房间号，以及包含上述 URL 的分享文本 / Markdown
 

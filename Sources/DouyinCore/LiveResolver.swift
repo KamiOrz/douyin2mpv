@@ -34,6 +34,13 @@ public enum LiveResolver {
               let host = url.host?.lowercased(), host == "douyin.com" || host.hasSuffix(".douyin.com") else { throw LiveError.invalidInput }
         if let id = url.queryItems?.first(where: { $0.name == "live_web_rid" })?.value,
            id.range(of: #"^\d{5,25}$"#, options: .regularExpression) != nil { return id }
+        // The follow feed puts the room ID in the path; anchor_id is a different ID.
+        let segments = url.path.split(separator: "/")
+        if (host == "www.douyin.com" || host == "douyin.com"),
+           segments.count == 3, segments[0] == "follow", segments[1] == "live",
+           segments[2].range(of: #"^\d{5,25}$"#, options: .regularExpression) != nil {
+            return String(segments[2])
+        }
         if host == "live.douyin.com", let id = url.path.split(separator: "/").first,
            id.range(of: #"^\d{5,25}$"#, options: .regularExpression) != nil { return String(id) }
         throw LiveError.invalidInput

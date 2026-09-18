@@ -11,6 +11,20 @@ final class LiveResolverTests: XCTestCase {
         XCTAssertThrowsError(try LiveResolver.roomID(from: "https://www.douyin.com/video/123456789"))
         XCTAssertThrowsError(try LiveResolver.roomID(from: "hello"))
     }
+    func testFollowLiveLinks() throws {
+        let link = "https://www.douyin.com/follow/live/640145788197?anchor_id=1141722744096457"
+        XCTAssertEqual(try LiveResolver.roomID(from: link), "640145788197")
+        XCTAssertEqual(try LiveResolver.roomID(from: "[直播](\(link))"), "640145788197")
+        XCTAssertEqual(try LiveResolver.roomID(from: "https://douyin.com/follow/live/640145788197/"), "640145788197")
+        for invalid in [
+            "https://www.douyin.com/follow/live/?anchor_id=1141722744096457",
+            "https://www.douyin.com/follow/live/invalid?anchor_id=1141722744096457",
+            "https://www.douyin.com/follow/live/640145788197/extra",
+            "https://www.douyin.com.evil.example/follow/live/640145788197"
+        ] {
+            XCTAssertThrowsError(try LiveResolver.roomID(from: invalid), invalid)
+        }
+    }
     func testEscapedQualityMaps() throws {
         let html = #"<script>push([1,"{\"hls_pull_url_map\":{\"SD2\":\"https://example.com/sd/playlist.m3u8?a=1\u0026b=2\",\"FULL_HD1\":\"https://example.com/full/playlist.m3u8?a=1\u0026b=2\"},\"flv_pull_url\":{\"FULL_HD1\":\"https://example.com/full.flv\"}}"])</script>"#
         let streams = try LiveResolver.streams(in: html)

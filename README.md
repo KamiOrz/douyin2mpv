@@ -23,6 +23,8 @@
 
 「复制地址」与「导出 M3U」使用当前解析结果，地址有有效期。关闭工具不会关闭已启动的 mpv。再次播放会打开新的 mpv 实例。
 
+默认启用「断流自动恢复」（可在设置关闭，下次播放生效）：短暂网络错误先由 FFmpeg 重连；流结束或读取失败后，在同一个 mpv 窗口重新解析直播间，尽量保留所选画质。连续最多尝试 5 次，等待间隔 2、4、8、16、20 秒；成功加载后保持 60 秒才重置次数。恢复脚本在 mpv 内运行，退出 GUI 后也能继续工作。主动退出 / 停止不会重启；主播下播时重试可能无效，最终会保留空闲窗口。该机制不能保证所有网络问题都能恢复。
+
 ## 开发与构建
 
 要求 macOS 13+、Swift 6 工具链（Xcode Command Line Tools）和单独安装的 mpv。
@@ -31,6 +33,7 @@
 git clone https://github.com/KamiOrz/douyin2mpv.git
 cd douyin2mpv
 swift test
+python3 scripts/test-reconnect.py  # 需要已安装 mpv，离线验证恢复逻辑
 ./script/build_and_run.sh
 ```
 

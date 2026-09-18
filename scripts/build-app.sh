@@ -6,7 +6,7 @@ swift build
 BIN_DIR="$(swift build --show-bin-path)"
 APP="$(pwd)/dist/Douyin2MPV.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp assets/AppIcon.icns assets/AppIcon.png "$APP/Contents/Resources/"
+cp resources/live-reconnect.lua assets/AppIcon.icns assets/AppIcon.png "$APP/Contents/Resources/"
 cp "$BIN_DIR/Douyin2MPV" "$APP/Contents/MacOS/Douyin2MPV"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>

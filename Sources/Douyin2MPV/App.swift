@@ -6,6 +6,7 @@ import DouyinCore
 final class PlayerModel: ObservableObject {
     @Published var input = UserDefaults.standard.string(forKey: "lastInput") ?? ""
     @Published var mpvPath = UserDefaults.standard.string(forKey: "mpvPath") ?? ""
+    @Published var autoReconnect = UserDefaults.standard.object(forKey: "autoReconnect") as? Bool ?? true
     @Published var streams: [LiveStream] = []
     @Published var selection = ""
     @Published var busy = false
@@ -57,7 +58,22 @@ final class PlayerModel: ObservableObject {
             defer { try? handle.close() }
             let process = Process()
             process.executableURL = URL(fileURLWithPath: executable)
-            process.arguments = ["--force-window=yes", "--title=抖音直播 \(roomID)", "--", stream.url.absoluteString]
+            var arguments = ["--force-window=yes", "--title=抖音直播 \(roomID)"]
+            if autoReconnect {
+                let script = Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/live-reconnect.lua").path
+                guard FileManager.default.fileExists(atPath: script) else {
+                    throw NSError(domain: "Douyin2MPV", code: 1, userInfo: [NSLocalizedDescriptionKey: "缺少自动恢复脚本，请重新构建应用。"])
+                }
+                let reconnect = "reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_on_http_error=5xx,reconnect_delay_max=3"
+                arguments += ["--idle=yes", "--keep-open=no", "--network-timeout=15",
+                    "--cache=yes", "--cache-secs=20", "--demuxer-max-bytes=64MiB",
+                    "--stream-lavf-o=\(reconnect)", "--demuxer-lavf-o=\(reconnect)",
+                    "--script=\(script)",
+                    "--script-opts-append=douyin2mpv-room=\(roomID)",
+                    "--script-opts-append=douyin2mpv-quality=\(stream.quality)",
+                    "--script-opts-append=douyin2mpv-format=\(stream.format)"]
+            }
+            process.arguments = arguments + ["--", stream.url.absoluteString]
             process.standardInput = FileHandle.nullDevice
             process.standardOutput = handle; process.standardError = handle
             process.terminationHandler = { process in
@@ -194,6 +210,10 @@ struct ContentView: View {
     private var settings: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("播放设置").font(.headline)
+            Toggle("断流自动恢复", isOn: $model.autoReconnect)
+                .onChange(of: model.autoReconnect) { UserDefaults.standard.set($0, forKey: "autoReconnect") }
+            Text("下次播放生效；连续失败最多重试 5 次，关闭播放器即停止。")
+                .font(.caption).foregroundStyle(.secondary)
             if !model.streams.isEmpty {
                 Picker("画质 / 格式", selection: $model.selection) {
                     ForEach(model.streams) { Text($0.label).tag($0.id) }

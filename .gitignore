@@ -1,0 +1,15 @@
+.build/
+.swiftpm/
+dist/
+.DS_Store
+
+# Local tooling and discarded design drafts
+.codex/
+design/
+
+# Local credentials, logs, and temporary stream playlists
+.env
+.env.*
+*.log
+*.m3u
+*.m3u8
